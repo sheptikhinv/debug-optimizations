@@ -41,15 +41,9 @@ public class JpegProcessor : IJpegProcessor
 		{
 			for (var x = 0; x < matrix.Width; x += DCTSize)
 			{
-				foreach (var selector in new Func<Pixel, double>[] { p => p.Y, p => p.Cb, p => p.Cr })
-				{
-					var subMatrix = GetSubMatrix(matrix, y, DCTSize, x, DCTSize, selector);
-					ShiftMatrixValues(subMatrix, -128);
-					var channelFreqs = DCT.DCT2D(subMatrix);
-					var quantizedFreqs = Quantize(channelFreqs, quantizationMatrix);
-					var quantizedBytes = ZigZagScan(quantizedFreqs);
-					allQuantizedBytes.AddRange(quantizedBytes);
-				}
+				ProcessChannel(matrix, y, x, quantizationMatrix, allQuantizedBytes, static p => p.Y);
+				ProcessChannel(matrix, y, x, quantizationMatrix, allQuantizedBytes, static p => p.Cb);
+				ProcessChannel(matrix, y, x, quantizationMatrix, allQuantizedBytes, static p => p.Cr);
 			}
 		}
 
@@ -93,6 +87,22 @@ public class JpegProcessor : IJpegProcessor
 		}
 
 		return result;
+	}
+	
+	private static void ProcessChannel(
+		Matrix matrix,
+		int y,
+		int x,
+		int[,] quantizationMatrix,
+		List<byte> allQuantizedBytes,
+		Func<Pixel, double> componentSelector)
+	{
+		var subMatrix = GetSubMatrix(matrix, y, DCTSize, x, DCTSize, componentSelector);
+		ShiftMatrixValues(subMatrix, -128);
+		var channelFreqs = DCT.DCT2D(subMatrix);
+		var quantizedFreqs = Quantize(channelFreqs, quantizationMatrix);
+		var quantizedBytes = ZigZagScan(quantizedFreqs);
+		allQuantizedBytes.AddRange(quantizedBytes);
 	}
 
 	private static void ShiftMatrixValues(double[,] subMatrix, int shiftValue)
